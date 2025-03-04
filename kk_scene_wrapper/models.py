@@ -1,11 +1,17 @@
-from kk_scene_wrapper.utils import animation_terms, body_extra_terms, body_terms, make_terms_regex, sfx_extra_terms, sfx_terms
-
-
 import itertools
 import os
 import re
 from typing import Optional, Tuple
 from xml.etree import ElementTree as et
+
+from kk_scene_wrapper.utils import (
+    animation_terms,
+    body_extra_terms,
+    body_terms,
+    make_terms_regex,
+    sfx_extra_terms,
+    sfx_terms,
+)
 
 
 class SceneData:
@@ -26,9 +32,8 @@ class SceneData:
 
     file_path: str
     timeline_regex: "re.Pattern"
-    timeline_status: str
     sfx_status: bool
-    image_type: Optional[str]
+    image_type: str
 
     _TIMELINE_PATTERN = re.compile(
         rb"timeline.+?sceneInfo(?P<flag>.*?)(?P<data><root\b[^>/]*?/>|<root\b[^>]*?>(?P<inner>.*?)</root>)",
@@ -69,7 +74,6 @@ class SceneData:
         self._cached_timeline: Optional[bytes] = None
 
         (
-            self.timeline_status,
             self.image_type,
             self.sfx_status,
             self._duration,
@@ -89,7 +93,7 @@ class SceneData:
         return self._content
 
     @property
-    def duration(self) -> Optional[float]:
+    def duration(self) -> float:
         return self._duration
 
     @duration.setter
@@ -117,8 +121,8 @@ class SceneData:
             self._duration = value
         return self
 
-    def get_timeline_info(self) -> Tuple[str, Optional[str], bool, Optional[float]]:
-        return self.timeline_status, self.image_type, self.sfx_status, self.duration
+    def get_timeline_info(self) -> Tuple[str, bool, float]:
+        return self.image_type, self.sfx_status, self.duration
 
     def get_timeline_xml(self, raise_exception: bool = False) -> Optional[bytes]:
         if self._cached_timeline:
@@ -164,7 +168,7 @@ class SceneData:
         self._cached_timeline = new_timeline
 
     def has_timeline(self) -> bool:
-        return self.timeline_status == "has_timeline"
+        return self.image_type != "static"
 
     def save(self, overwrite: bool = False):
         filename, ext = os.path.splitext(self.file_path)
@@ -187,26 +191,27 @@ class SceneData:
         return length_flag, timeline_byte_length
 
     def _is_scene_data(self) -> bool:
-        """檢查是否為scene data :: Check if the file is a scene data"""
         return (
             os.path.splitext(self.file_path)[1] == ".png" and b"KStudio" in self._content
         )
 
     def _count_anim_interpolables(
-        self, node: et.Element, min_required: int = 3, stop: int = 0
+        self, node: et.Element, min_keyframes: int = 3, stop: int = 0
     ) -> int:
         """
-        Count how many interpolables of type 'guideObjectPath' have a number of keyframes >= min_required.
+        Count how many interpolables of type 'guideObjectPath' have a number of keyframes >= min_keyframes.
         """
         found: int = 0
         for child in node:
             if child.tag == "interpolableGroup":
-                found += self._count_anim_interpolables(child, min_required, stop)
+                found += self._count_anim_interpolables(child, min_keyframes, stop)
             elif child.tag == "interpolable":
                 if (
                     "body" in child.get("guideObjectPath", "")
-                    or child.get("guideObjectPath") is not None
-                    and len(child) >= min_required
+                    or (path := child.get("guideObjectPath")) is not None
+                    and "camera" not in path.lower()
+                    and "camera" not in child.get("alias", "").lower()
+                    and len(child) >= min_keyframes
                 ):
                     found += 1
             if stop and found >= stop:
@@ -214,21 +219,18 @@ class SceneData:
 
         return found
 
-    def _check_timeline(self) -> Tuple[str, Optional[str], bool, Optional[float]]:
+    def _check_timeline(self) -> Tuple[str, bool, float]:
         """
         Returns:
-            tuple (timeline_status, image_type, sfx_status, duration)
-            timeline_status: "has_timeline", "no_timeline"
+            tuple (image_type, sfx_status, duration)
             image_type: "animation", "dynamic", "static", None
             sfx_status: bool
-            duration: float, None
+            duration: float
         """
         timeline_xml = self.get_timeline_xml()
 
-        if not timeline_xml:  # Check if there is a timeline
-            return "no_timeline", None, False, None
-        elif b"Timeline" not in timeline_xml:
-            return "has_timeline", "static", False, None
+        if not timeline_xml or b"Timeline" not in timeline_xml:
+            return "static", False, 0.0
 
         workspace = self.get_treenodenaming() or b"empty"
         if workspace == b"empty":
@@ -240,17 +242,14 @@ class SceneData:
 
         timeline = et.ElementTree(et.fromstring(timeline_xml)).getroot()
 
-        duration = float(timeline.get("duration", 0.0))
-        if not duration:
-            return "has_timeline", "dynamic", sfx_status, 0.0
-
         # Iterate over timeline and all its children until you find 3 or more children that fufill these 2 conditions:
         # - They each have the "guideObjectPath" attribute.
         # - They have 3 or more children/keyframes.
         # If the conditions are met return "animation" else return "dynamic"
-        min_required = 3
-        if self._count_anim_interpolables(timeline, min_required, 3) >= 3:
-            return "has_timeline", "animation", sfx_status, duration
+        duration = float(timeline.get("duration", 0.0))
+        min_keyframes = 3
+        if self._count_anim_interpolables(timeline, min_keyframes, 3) >= 3:
+            return "animation", sfx_status, duration
         else:
             # No guideObjectPath means no motion, except face motions and cameras
-            return "has_timeline", "dynamic", sfx_status, duration
+            return "dynamic", sfx_status, duration

@@ -1,5 +1,5 @@
 import re
-from typing import Generator, Iterable, Optional, Tuple
+from typing import Generator, Iterable, Tuple
 
 
 def int_to_bytes(number: int) -> bytes:
@@ -71,9 +71,5 @@ def body_extra_terms() -> "Generator[bytes]":
 def make_terms_regex(terms: "Iterable[bytes]") -> "re.Pattern":
     # For a term to be considered "found" it must be surrounded by non-ASCII characters or spaces
     return re.compile(
-        rb"(?<=[\x00-\x1F\x7F-\x9F])("
-        + b"|".join(re.escape(term) for term in terms)
-        + rb")(?=[\x00-\x1F\x7F-\x9F])",
+        rb"(?<![\w])(" + b"|".join(re.escape(term) for term in terms) + rb")(?![\w])",
     )
-
-
