@@ -1,6 +1,6 @@
 @echo off
 
-SET project_path=src
+SET project_path=kk_scene_wrapper
 SET mypylint=mypy %project_path% --ignore-missing-imports --no-warn-unused-ignores --warn-redundant-casts --warn-unused-ignores --pretty --show-error-codes --check-untyped-defs
 
 IF /I "%1"==".DEFAULT_GOAL " GOTO .DEFAULT_GOAL 
@@ -31,7 +31,7 @@ GOTO error
 	GOTO :EOF
 
 :test
-	pytest %project_path%
+	pytest
 	GOTO :EOF
 
 :error

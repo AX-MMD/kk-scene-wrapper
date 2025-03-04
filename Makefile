@@ -1,5 +1,5 @@
 .DEFAULT_GOAL := all
-project_path = src
+project_path = kk_scene_wrapper
 mypylint = mypy $(project_path) --ignore-missing-imports --no-warn-unused-ignores --warn-redundant-casts --warn-unused-ignores --pretty --show-error-codes --check-untyped-defs
 
 .PHONY: pretty
@@ -19,7 +19,7 @@ lint:
 
 .PHONY: test
 test:
-	pytest $(project_path)
+	pytest
 
 .PHONY: all
 
