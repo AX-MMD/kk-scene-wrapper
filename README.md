@@ -1,6 +1,8 @@
 ### USAGE ##############################################################
 ___
 ```python
+from kk_scene_wrapper import SceneData
+
 path = "/path/to/scene-file"
 sd = SceneData(path)
 
