@@ -1,6 +1,6 @@
 ### USAGE ##############################################################
 ___
-python```
+```python
 path = "/path/to/scene-file"
 sd = SceneData(path)
 
@@ -12,5 +12,4 @@ timeline = sd.get_timeline_xml_tree()
   sfx_status: bool,         # True if sfx found
   duration: int
 ) = sd.get_timeline_info()
-
 ```
