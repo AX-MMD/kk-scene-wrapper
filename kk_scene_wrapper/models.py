@@ -1,83 +1,11 @@
+from kk_scene_wrapper.utils import animation_terms, body_extra_terms, body_terms, make_terms_regex, sfx_extra_terms, sfx_terms
+
+
 import itertools
 import os
 import re
-from typing import Generator, Iterable, Optional, Tuple
+from typing import Optional, Tuple
 from xml.etree import ElementTree as et
-
-
-def int_to_bytes(number: int) -> bytes:
-    # Calculate the minimum number of bytes required to represent the integer
-    min_bytes = (number.bit_length() + 7) // 8
-    # Convert the integer to a big-endian byte string of the minimum length
-    return number.to_bytes(min_bytes, byteorder="big")
-
-
-def flag_to_int_array(flag: bytes) -> Tuple[int, int]:
-    return int.from_bytes(flag[0:1], byteorder="big"), int.from_bytes(
-        flag[1:], byteorder="big"
-    )
-
-
-def sfx_terms() -> "Generator[bytes]":
-    for term in ("sound", "audio", "voice", "moan"):
-        yield term.encode("utf-8")
-        yield term.capitalize().encode("utf-8")
-        yield term.upper().encode("utf-8")
-    for term in ["3DSE"]:
-        yield term.encode("utf-8")
-
-
-def sfx_extra_terms() -> "Generator[bytes]":
-    for term in ["sfx"]:
-        yield term.encode("utf-8")
-        yield term.capitalize().encode("utf-8")
-        yield term.upper().encode("utf-8")
-    for term in ("SE", "VA"):
-        yield term.encode("utf-8")
-
-
-def animation_terms() -> "Generator[bytes]":
-    for term in ("animation", "motion", "move"):
-        yield term.encode("utf-8")
-        yield term.capitalize().encode("utf-8")
-        yield term.upper().encode("utf-8")
-
-
-def body_terms() -> "Generator[bytes]":
-    for term in (
-        "body",
-        "hips",
-        "waist",
-        "chest",
-        "thigh",
-        "head",
-        "neck",
-        "shoulder",
-        "hand",
-        "finger",
-        "knee",
-        "foot",
-        "elbow",
-    ):
-        yield term.encode("utf-8")
-        yield term.capitalize().encode("utf-8")
-        yield term.upper().encode("utf-8")
-
-
-def body_extra_terms() -> "Generator[bytes]":
-    for term in ("arm", "leg"):
-        yield term.encode("utf-8")
-        yield term.capitalize().encode("utf-8")
-        yield term.upper().encode("utf-8")
-
-
-def make_terms_regex(terms: "Iterable[bytes]") -> "re.Pattern":
-    # For a term to be considered "found" it must be surrounded by non-ASCII characters or spaces
-    return re.compile(
-        rb"(?<=[\x00-\x1F\x7F-\x9F])("
-        + b"|".join(re.escape(term) for term in terms)
-        + rb")(?=[\x00-\x1F\x7F-\x9F])",
-    )
 
 
 class SceneData:
@@ -264,7 +192,7 @@ class SceneData:
             os.path.splitext(self.file_path)[1] == ".png" and b"KStudio" in self._content
         )
 
-    def _traverse_tree(
+    def _count_anim_interpolables(
         self, node: et.Element, min_required: int = 3, stop: int = 0
     ) -> int:
         """
@@ -273,7 +201,7 @@ class SceneData:
         found: int = 0
         for child in node:
             if child.tag == "interpolableGroup":
-                found += self._traverse_tree(child)
+                found += self._count_anim_interpolables(child, min_required, stop)
             elif child.tag == "interpolable":
                 if (
                     "body" in child.get("guideObjectPath", "")
@@ -321,7 +249,7 @@ class SceneData:
         # - They have 3 or more children/keyframes.
         # If the conditions are met return "animation" else return "dynamic"
         min_required = 3
-        if self._traverse_tree(timeline, min_required, 3) >= 3:
+        if self._count_anim_interpolables(timeline, min_required, 3) >= 3:
             return "has_timeline", "animation", sfx_status, duration
         else:
             # No guideObjectPath means no motion, except face motions and cameras
