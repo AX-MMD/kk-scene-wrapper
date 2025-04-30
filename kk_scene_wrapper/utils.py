@@ -25,6 +25,8 @@ def sfx_terms() -> "Generator[bytes]":
 
     yield rb"\(S\)\s{0,1}\w{2,}"
     yield rb"name=\"\(S\).+\""
+    yield rb'name="[^"]*moan[^"]*"'
+    yield rb'name="[^"]*piston[^"]*"'
 
 
 def sfx_extra_terms() -> "Generator[bytes]":
