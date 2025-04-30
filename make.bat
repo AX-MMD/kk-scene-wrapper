@@ -8,6 +8,7 @@ IF /I "%1"=="pretty" GOTO pretty
 IF /I "%1"=="format" GOTO format
 IF /I "%1"=="lint" GOTO lint
 IF /I "%1"=="test" GOTO test
+IF /I "%1"=="install" GOTO install
 GOTO error
 
 :.DEFAULT_GOAL 
@@ -32,6 +33,11 @@ GOTO error
 
 :test
 	pytest
+	GOTO :EOF
+
+:install
+	poetry build
+	pip install --force-reinstall --user dist/kk_scene_wrapper-0.1.0-py3-none-any.whl
 	GOTO :EOF
 
 :error

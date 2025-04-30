@@ -62,6 +62,9 @@ class SceneData:
         self.timeline_regex = (
             re.compile(timeline_regex) if timeline_regex else self._TIMELINE_PATTERN
         )
+        if os.path.splitext(self.file_path)[1] != ".png":
+            raise SceneData.ContentError("File is not a scene data file")
+
         try:
             with open(file_path, "rb") as filekk:
                 self._content = filekk.read()
@@ -227,11 +230,6 @@ class SceneData:
             sfx_status: bool
             duration: float
         """
-        timeline_xml = self.get_timeline_xml()
-
-        if not timeline_xml or b"Timeline" not in timeline_xml:
-            return "static", False, 0.0
-
         workspace = self.get_treenodenaming() or b"empty"
         if workspace == b"empty":
             # If the scene does not use the treenodenaming plugin, check for 4+ letter sfx terms in the content
@@ -239,6 +237,11 @@ class SceneData:
         else:
             # If it uses the plugin, check for 2+ letter sfx terms in the workspace
             sfx_status = re.search(self._SFX_EXTRA_TERMS, workspace) is not None
+
+        timeline_xml = self.get_timeline_xml()
+
+        if not timeline_xml or b"Timeline" not in timeline_xml:
+            return "dynamic" if sfx_status else "static", False, 0.0
 
         timeline = et.ElementTree(et.fromstring(timeline_xml)).getroot()
 

@@ -1,5 +1,7 @@
 import os
+
 import pytest
+
 from kk_scene_wrapper import SceneData
 
 # Define the expected parameters for each file

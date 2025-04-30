@@ -23,6 +23,9 @@ def sfx_terms() -> "Generator[bytes]":
     for term in ["3DSE"]:
         yield term.encode("utf-8")
 
+    yield rb"\(S\)\s{0,1}\w{2,}"
+    yield rb"name=\"\(S\).+\""
+
 
 def sfx_extra_terms() -> "Generator[bytes]":
     for term in ["sfx"]:
@@ -69,7 +72,16 @@ def body_extra_terms() -> "Generator[bytes]":
 
 
 def make_terms_regex(terms: "Iterable[bytes]") -> "re.Pattern":
-    # For a term to be considered "found" it must be surrounded by non-ASCII characters or spaces
+    # Combine terms and custom patterns into a single regex pattern
+    all_patterns = []
+    for term in terms:
+        if b"\\" in term:  # If the term contains a backslash, treat it as a regex pattern
+            all_patterns.append(term)
+        else:  # Otherwise, escape the term
+            all_patterns.append(re.escape(term))
+    # For a term to be considered "found" it must be surrounded by non-word characters (except .) or spaces
     return re.compile(
-        rb"(?<![\w])(" + b"|".join(re.escape(term) for term in terms) + rb")(?![\w])",
+        rb"(?<![\[{(\w._:;'\"?+=-])("
+        + b"|".join(all_patterns)
+        + rb")(?![\w._:;'\"?+=)}\]-])",
     )
