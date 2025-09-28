@@ -16,12 +16,14 @@ def flag_to_int_array(flag: bytes) -> Tuple[int, int]:
 
 
 def sfx_terms() -> "Generator[bytes]":
-    for term in ("sound", "sounds", "audio", "voice", "voices", "moan", "piston"):
+    for term in ("sound", "sounds", "audio", "voice", "voices", "moan"):
         yield term.encode("utf-8")
         yield term.capitalize().encode("utf-8")
         yield term.upper().encode("utf-8")
     for term in ["3DSE"]:
         yield term.encode("utf-8")
+
+    yield "piston".encode("utf-8")
 
     yield rb"\(S\)\s{0,1}\w{2,}"
     yield rb"name=\"\(S\).+\""
