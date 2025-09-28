@@ -16,7 +16,7 @@ def flag_to_int_array(flag: bytes) -> Tuple[int, int]:
 
 
 def sfx_terms() -> "Generator[bytes]":
-    for term in ("sound", "audio", "voice", "moan"):
+    for term in ("sound", "sounds", "audio", "voice", "voices", "moan", "piston"):
         yield term.encode("utf-8")
         yield term.capitalize().encode("utf-8")
         yield term.upper().encode("utf-8")
@@ -39,7 +39,7 @@ def sfx_extra_terms() -> "Generator[bytes]":
 
 
 def animation_terms() -> "Generator[bytes]":
-    for term in ("animation", "motion", "move"):
+    for term in ("animation", "motion", "move", "armature"):
         yield term.encode("utf-8")
         yield term.capitalize().encode("utf-8")
         yield term.upper().encode("utf-8")
@@ -81,9 +81,9 @@ def make_terms_regex(terms: "Iterable[bytes]") -> "re.Pattern":
             all_patterns.append(term)
         else:  # Otherwise, escape the term
             all_patterns.append(re.escape(term))
-    # For a term to be considered "found" it must be surrounded by non-word characters (except .) or spaces
+    # For a term to be considered "found" it must be preceded by 2, and followed by 1, non-word characters (except .) or spaces
     return re.compile(
-        rb"(?<![\[{(\w._:;'\"?+=-])("
+        rb"(?<![\[{(\w._:;'\"?+=-]{2})("
         + b"|".join(all_patterns)
         + rb")(?![\w._:;'\"?+=)}\]-])",
     )

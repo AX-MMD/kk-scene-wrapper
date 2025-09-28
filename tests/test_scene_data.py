@@ -69,6 +69,13 @@ test_files = [
         "sfx_status": False,
         "duration": 0.0,
     },
+    {
+        "path": "test_animation_or_armature_folder_keyframes.png",
+        "timeline_status": True,
+        "image_type": "animation",
+        "sfx_status": False,
+        "duration": 1.8,
+    }
     # Add more file parameters here
 ]
 
@@ -100,7 +107,7 @@ def test_scene_data_timeline(file_params):
     sd = SceneData(file_path)
 
     image_type, sfx_status, duration = sd.get_timeline_info()
-    assert sd.has_timeline() == file_params["timeline_status"], f"{sd.has_timeline()} != {file_params['timeline_status']}: {file_params['path']}"
-    assert image_type == file_params["image_type"], f"{image_type} != {file_params['image_type']}: {file_params['path']}"
-    assert sfx_status == file_params["sfx_status"], f"{sfx_status} != {file_params['sfx_status']}: {file_params['path']}"
-    assert duration == file_params["duration"], f"{duration} != {file_params['duration']}: {file_params['path']}"
+    assert sd.has_timeline() == file_params["timeline_status"], f"{sd.has_timeline()} != expected {file_params['timeline_status']}: {file_params['path']}"
+    assert image_type == file_params["image_type"], f"image_type {image_type}, expected {file_params['image_type']}: {file_params['path']}"
+    assert sfx_status == file_params["sfx_status"], f"sfx_status {sfx_status}, expected {file_params['sfx_status']}: {file_params['path']}"
+    assert duration == file_params["duration"], f"duration {duration}, expected {file_params['duration']}: {file_params['path']}"

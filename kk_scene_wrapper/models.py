@@ -36,7 +36,7 @@ class SceneData:
     image_type: str
 
     _TIMELINE_PATTERN = re.compile(
-        rb"timeline.+?sceneInfo(?P<flag>.*?)(?P<data><root\b[^>/]*?/>|<root\b[^>]*?>(?P<inner>.*?)</root>)",
+        rb"timeline.{1,10}?sceneInfo(?P<flag>.*?)(?P<data><root\b[^>/]*?/>|<root\b[^>]*?>(?P<inner>.*?)</root>)",
         re.DOTALL,
     )
     _DURATION_PATTERN = re.compile(rb'duration="([\d\.]+)"')
@@ -49,7 +49,15 @@ class SceneData:
         itertools.chain(body_terms(), body_extra_terms())
     )
     _THREENODENAMING_PATTERN = re.compile(
-        rb"org.njaecha.plugins.treenodenaming(?P<workspace>.+?)org.njaecha.plugins",
+        rb"org.njaecha.plugins.treenodenaming\xe2\x80\x99(?P<workspace>.+?)\xe2\x80\x99",
+        re.DOTALL,
+    )
+    _PLUGINLIST_PATTERN = re.compile(
+        rb"PluginListTool(?P<plugins>.+?)PNG(?=[^\w\s])",
+        re.DOTALL,
+    )
+    _VMDPLAY_PATTERN = re.compile(
+        rb"<VMDPlaySaveData(?P<data>.+?)</VMDPlaySaveData>",
         re.DOTALL,
     )
 
@@ -222,6 +230,32 @@ class SceneData:
 
         return found
 
+    def _count_guideobject_interpolables(
+        self, node: et.Element, min_keyframes: int = 3, stop: int = 0
+    ) -> int:
+        """
+        Count how many interpolables of type 'id=guideObject' have a number of keyframes >= min_keyframes.
+        """
+        found: int = 0
+        for child in node:
+            if child.tag == "interpolableGroup":
+                found += self._count_guideobject_interpolables(child, min_keyframes, stop)
+            elif child.tag == "interpolable":
+                if "guideObject" in child.get("id", "") and len(child) >= min_keyframes:
+                    found += 1
+            if stop and found >= stop:
+                break
+
+        return found
+
+    def _count_terms(self, pattern: re.Pattern, workspace: bytes, max_count: int) -> int:
+        count = 0
+        for _ in re.finditer(pattern, workspace):
+            count += 1
+            if count >= max_count:
+                break
+        return count
+
     def _check_timeline(self) -> Tuple[str, bool, float]:
         """
         Returns:
@@ -230,28 +264,55 @@ class SceneData:
             sfx_status: bool
             duration: float
         """
-        workspace = self.get_treenodenaming() or b"empty"
-        if workspace == b"empty":
+        workspace = self.get_treenodenaming()
+        if not workspace:
+            workspace = self.content
+            _body_terms = self._BODY_TERMS
             # If the scene does not use the treenodenaming plugin, check for 4+ letter sfx terms in the content
-            sfx_status = re.search(self._SFX_TERMS, self.content) is not None
+            excluded_portions = []
+            if pluginlist_match := self._PLUGINLIST_PATTERN.search(workspace):
+                with open("debug_pluginlist.txt", "wb") as f:
+                    f.write(pluginlist_match.group(0))
+                excluded_portions.append(pluginlist_match.span())
+            if vmdplay_match := self._VMDPLAY_PATTERN.search(workspace):
+                excluded_portions.append(vmdplay_match.span())
+
+            if excluded_portions:
+                sfx_status = False
+                # Check for SFX terms outside excluded portions
+                for match in re.finditer(self._SFX_TERMS, workspace):
+                    if not any(
+                        start <= match.start() < end for start, end in excluded_portions
+                    ):
+                        sfx_status = True
+                        break
+            else:
+                sfx_status = re.search(self._SFX_TERMS, workspace) is not None
         else:
+            _body_terms = self._BODY_EXTRA_TERMS
             # If it uses the plugin, check for 2+ letter sfx terms in the workspace
             sfx_status = re.search(self._SFX_EXTRA_TERMS, workspace) is not None
 
         timeline_xml = self.get_timeline_xml()
 
         if not timeline_xml or b"Timeline" not in timeline_xml:
-            return "dynamic" if sfx_status else "static", False, 0.0
+            return ("dynamic" if sfx_status else "static"), False, 0.0
 
         timeline = et.ElementTree(et.fromstring(timeline_xml)).getroot()
+        duration = float(timeline.get("duration", 0.0))
 
         # Iterate over timeline and all its children until you find 3 or more children that fufill these 2 conditions:
         # - They each have the "guideObjectPath" attribute.
         # - They have 3 or more children/keyframes.
         # If the conditions are met return "animation" else return "dynamic"
-        duration = float(timeline.get("duration", 0.0))
+
         min_keyframes = 3
         if self._count_anim_interpolables(timeline, min_keyframes, 3) >= 3:
+            return "animation", sfx_status, duration
+        elif (
+            self._count_terms(self._ANIMATION_TERMS, workspace, 2) >= 2
+            or self._count_terms(_body_terms, workspace, 4) >= 4
+        ) and self._count_guideobject_interpolables(timeline, min_keyframes, 6) >= 6:
             return "animation", sfx_status, duration
         else:
             # No guideObjectPath means no motion, except face motions and cameras
