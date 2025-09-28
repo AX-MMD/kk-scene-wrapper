@@ -9,6 +9,7 @@ IF /I "%1"=="format" GOTO format
 IF /I "%1"=="lint" GOTO lint
 IF /I "%1"=="test" GOTO test
 IF /I "%1"=="install" GOTO install
+IF /I "%1"=="publish" GOTO publish
 GOTO error
 
 :.DEFAULT_GOAL 
