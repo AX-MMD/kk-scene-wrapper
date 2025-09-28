@@ -1,6 +1,6 @@
 [project]
 name = "kk_scene_wrapper"
-version = "0.3.1"
+version = "0.3.2"
 description = "A wrapper for KK scene management"
 authors = [
     {name = "AX-MMD",email = "ax.mmd.yt@gmail.com"}
