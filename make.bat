@@ -40,6 +40,11 @@ GOTO error
 	pip install --force-reinstall --user dist/kk_scene_wrapper-0.1.0-py3-none-any.whl
 	GOTO :EOF
 
+:publish
+	poetry build
+	poetry publish
+	GOTO :EOF
+
 :error
     IF "%1"=="" (
         ECHO make: *** No targets specified and no makefile found.  Stop.
