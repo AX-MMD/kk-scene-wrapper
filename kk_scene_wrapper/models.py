@@ -49,11 +49,11 @@ class SceneData:
         itertools.chain(body_terms(), body_extra_terms())
     )
     _THREENODENAMING_PATTERN = re.compile(
-        rb"org.njaecha.plugins.treenodenaming\xe2\x80\x99(?P<workspace>.+?)\xe2\x80\x99",
+        rb"org\.njaecha\.plugins\.treenodenaming\xe2\x80\x99(?P<workspace>.+?)(\xe2\x80\x99\x00|$)",
         re.DOTALL,
     )
     _PLUGINLIST_PATTERN = re.compile(
-        rb"PluginListTool(?P<plugins>.+?)PNG(?=[^\w\s])",
+        rb"PluginListTool(?P<plugins>.+?)(?<=([^\w ]))PNG(?=[^\w ])",
         re.DOTALL,
     )
     _VMDPLAY_PATTERN = re.compile(
@@ -270,9 +270,7 @@ class SceneData:
             _body_terms = self._BODY_TERMS
             # If the scene does not use the treenodenaming plugin, check for 4+ letter sfx terms in the content
             excluded_portions = []
-            if pluginlist_match := self._PLUGINLIST_PATTERN.search(workspace):
-                with open("debug_pluginlist.txt", "wb") as f:
-                    f.write(pluginlist_match.group(0))
+            for pluginlist_match in self._PLUGINLIST_PATTERN.finditer(workspace):
                 excluded_portions.append(pluginlist_match.span())
             if vmdplay_match := self._VMDPLAY_PATTERN.search(workspace):
                 excluded_portions.append(vmdplay_match.span())
